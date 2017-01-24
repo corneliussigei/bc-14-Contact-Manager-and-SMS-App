@@ -54,16 +54,46 @@ DBSession = sessionmaker(bind=engine)
 # session.rollback()
 session = DBSession()
 
-# Insert a Person in the person table
-new_person = Person(name='Ben', contacts ='0719221625')
-session.add(new_person)
-session.commit()
+class AddContacts(Person, Message, Base):
+    def __init__(self,name, phone_number):
 
+        self.name=name
+        self.phone_number=str(phone_number)
+    def insertInformation(self):
+        new_person = Person(name=self.name, contacts=self.phone_number)
+        session.add(new_person)
+        session.commit()
+        person = session.query(Person)
+        for instance in person:
+            print(instance.id, instance.name,"|", instance.contacts)
+
+def main():
+    pass
+
+if __name__ == '__main__':
+    main()
+    userInput = input("%>") #save user input in string variable
+    if userInput=="":
+        print
+        "Command required"
+        quit()
+    input_words_list = userInput.split()  #split user input string words into list using spaces
+
+    if ((input_words_list[0] == 'add') and (input_words_list[1] == '-n') and (input_words_list[3] == '-p')):
+        name = input_words_list[2]
+        phone_number = input_words_list[4]
+        # Insert a Person in the person table
+        a_contacts = AddContacts(name, phone_number)
+        a_contacts.insertInformation()
+        session.commit()
+    else:#if the user enters a wrong command
+        print("You entered a wrong command. Please type 'help?' to see valid commands.")
+        quit()
+session.close()
 # Insert a message in the Message table
-new_message = Message(message_body='This is a sample message', person=new_person)
-session.add(new_message)
-session.commit()
+#new_message = Message(message_body='This is a sample message', person=new_person)
+#session.add(new_message)
+#session.commit()
 
 #query
-person = session.query(Person).first()
-print(person.name,person.contacts)
+
