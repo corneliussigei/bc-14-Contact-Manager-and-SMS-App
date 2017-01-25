@@ -168,4 +168,3 @@ if __name__ == '__main__':
             print("You entered a wrong command. Please type 'help?' to see valid commands.")
 
 session.close()
-
