@@ -5,6 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from consumeAfTalkingAPI import getMessage
 
 Base = declarative_base()
 
@@ -54,10 +55,12 @@ DBSession = sessionmaker(bind=engine)
 # session.rollback()
 session = DBSession()
 
+#class to insert contacts in db
 class AddContacts(Person, Message, Base):
     def __init__(self,name, phone_number):
         self.name=name
         self.phone_number=str(phone_number)
+        #function to perfom the data entry
     def insertInformation(self):
         new_person = Person(name=self.name, contacts=self.phone_number)
         session.add(new_person)
@@ -66,16 +69,40 @@ class AddContacts(Person, Message, Base):
         for instance in person:
             print(instance.id, instance.name,"|", instance.contacts)
 
+#class to insert contacts in db
+class SendMessage(Person, Message, Base):
+    def __init__(self,messsage_recipient, message):
+        self.messsage_recipient=messsage_recipient
+        self.message=message
+        #function to perfom the data entry
+    def saveMessage(self):
+        new_message = Message(name=self.messsage_recipient, message_body=self.message)
+        session.add(new_message)
+        session.commit()
+        messages = session.query(Message)
+        for instance in messages:
+            print(instance.person_id, ": ", instance.message_body)
+
 class SearchContact(Person,Base):
     def __init__(self,name):
         self.name=name
+
     def search(self):
-        new_person = Person(name=self.name, contacts=self.phone_number)
-        session.add(new_person)
-        session.commit()
-        person = session.query(Person)
-        for instance in person:
-            print(instance.id, instance.name,"|", instance.contacts)
+        searchResults = session.query(Person).filter(Person.name.ilike("%"+self.name+"%"))
+        total = searchResults.count()
+        if(total>1):
+            searchResults.split()
+            askForRequired = input("Which "+self.name+"?")
+            for instance in searchResults:
+                print(total,". ",instance.name)
+        elif(total==0):
+            for instance in searchResults:
+                print(total, ". ", instance.name)
+        else:
+            print("No records found!")
+
+class ContactsSync(Person, Base):
+    """"  """
 
 def main():
     pass
@@ -88,11 +115,8 @@ if __name__ == '__main__':
     main()
     while True:
         userInput = input("%>") #save user input in string variable
-        if userInput=="":
-            print
-            "Command required"
-            quit()
-        input_words_list = userInput.split()  #split user input string words into list using spaces
+
+        input_words_list = userInput.replace('"','').split()  #split user input string words into list using spaces
 
         if ((input_words_list[0] == 'add') and (input_words_list[1] == '-n') and (input_words_list[3] == '-p')):
             name = input_words_list[2]
@@ -103,30 +127,43 @@ if __name__ == '__main__':
             session.commit()
         elif ((input_words_list[0] == 'search') and (input_words_list[1] != '')):
             search_keyword = input_words_list[1]
+            searcher = SearchContact(search_keyword)
+            searcher.search()
 
 
-
-        elif ((input_words_list[0] == 'text') and (input_words_list[2] == '-m')):
+        elif ((input_words_list[0] == 'text') and (input_words_list[2] == '-m') and (input_words_list[3] != '')):
             name = input_words_list[1]
-            message = input_words_list[3]
+            msg = []
+            for i in range(3, len(input_words_list)):
+                message = msg.append(input_words_list[i]+" ")
+                # Insert a Person in the person table
+            message_to_send = message.strip()
+            save_message = SendMessage(name, message_to_send)
+            save_message.saveMessage()
+            getMessage(name, message_to_send)
+
 
 
         elif ((input_words_list[0] == 'sync') and (input_words_list[1] == 'contacts')):
             print("Syncing contacts.....")
 
+
         elif (input_words_list[0] == 'help?'):
             for key, value in commands_help_values.items():
                 print("      ", key, "   :   ", value)
 
+        elif (input_words_list[0] == 'exit'):
+            exit()
+
 
         else:#if the user enters a wrong command
             print("You entered a wrong command. Please type 'help?' to see valid commands.")
-            quit()
-    session.close()
-    # Insert a message in the Message table
-    #new_message = Message(message_body='This is a sample message', person=new_person)
-    #session.add(new_message)
-    #session.commit()
 
-    #query
+session.close()
+# Insert a message in the Message table
+#new_message = Message(message_body='This is a sample message', person=new_person)
+#session.add(new_message)
+#session.commit()
+
+#query
 
