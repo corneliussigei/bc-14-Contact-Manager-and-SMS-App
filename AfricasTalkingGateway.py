@@ -1,233 +1,169 @@
-"""
- COPYRIGHT (C) 2014 AFRICASTALKING LTD <www.africastalking.com>                                                   #
- AFRICAStALKING SMS GATEWAY CLASS IS A FREE SOFTWARE IE. CAN BE MODIFIED AND/OR REDISTRIBUTED
- UNDER THER TERMS OF GNU GENERAL PUBLIC LICENCES AS PUBLISHED BY THE
- FREE SOFTWARE FOUNDATION VERSION 3 OR ANY LATER VERSION
- THE CLASS IS DISTRIBUTED ON 'AS IS' BASIS WITHOUT ANY WARRANTY, INCLUDING BUT NOT LIMITED TO
- THE IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
- OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""
+import os
 import sys
-PY_MAJOR_VERSION = sys.version_info[0]
+from sqlalchemy import Column, ForeignKey, Integer, String, TIMESTAMP, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from consumeAfTalkingAPI import FowardMessage
 
-if PY_MAJOR_VERSION < 3:
-    from urllib import urlencode as urllib_urlencode
-    import urllib2 as urllib_request
-else:
-    import urllib.request as urllib_request
-    from urllib.parse import urlencode as urllib_urlencode
+Base = declarative_base()
 
-import json
-
-
-class AfricasTalkingGatewayException(Exception):
-    pass
+class Person(Base):
+    __tablename__ = 'personTable'
+    # Here we define columns for the table person
+    # Notice that each column is also a normal Python instance attribute.
+    id = Column(Integer, primary_key=True)
+    contacts = Column(String(100), nullable=False)
+    name = Column(String(250), nullable=False)
 
 
-class AfricasTalkingGateway:
+class Message(Base):
+    __tablename__ = 'messageTable'
+    # Here we define columns for the message table.
+    # Notice that each column is also a normal Python instance attribute.
+    id = Column(Integer, primary_key=True)
+    message_body = Column(String(1000))
+    time_stamp = Column(TIMESTAMP,nullable=True)
+    person_id = Column(Integer, ForeignKey('personTable.id'))
+    person = relationship(Person)
 
-    def __init__(self, username_, apiKey_):
-        self.username = username_
-        self.apiKey = apiKey_
 
-        self.SMSURLString = "https://api.africastalking.com/version1/messaging"
-        self.VoiceURLString = "https://voice.africastalking.com"
-        self.SubscriptionURLString = "https://api.africastalking.com/version1/subscription"
-        self.UserDataURLString = "https://api.africastalking.com/version1/user"
-        self.AirtimeUrlString = "https://api.africastalking.com/version1/airtime"
+# Create an engine that stores data in the local directory's
+# appDatabase.db file.
+engine = create_engine('sqlite:///appDatabase.db')
 
-        self.headers = {'Accept':
-                        'application/json', 'apikey': apiKey_}
+# Create all tables in the engine. This is equivalent to "Create Table"
+# statements in raw SQL.
+Base.metadata.create_all(engine)
 
-        self.HTTP_RESPONSE_OK = 200
-        self.HTTP_RESPONSE_CREATED = 201
+#inserting data
 
-        # Turn this on if you run into problems. It will print the raw HTTP response from our server
-        self.Debug = False
 
-    # Messaging methods
-    def sendMessage(self, to_, message_, from_=None, bulkSMSMode_=1, enqueue_=0, keyword_=None, linkId_=None, retryDurationInHours_=None):
-        if len(to_) == 0 or len(message_) == 0:
-            raise AfricasTalkingGatewayException(
-                "Please provide both to_ and message_ parameters")
+engine = create_engine('sqlite:///appDatabase.db')
+# Bind the engine to the metadata of the Base class so that the
+# declaratives can be accessed through a DBSession instance
+Base.metadata.bind = engine
 
-        parameters = {'username': self.username,
-                      'to': to_,
-                      'message': message_,
-                      'bulkSMSMode': bulkSMSMode_}
+DBSession = sessionmaker(bind=engine)
+# A DBSession() instance establishes all conversations with the database
+# and represents a "staging zone" for all the objects loaded into the
+# database session object. Any change made against the objects in the
+# session won't be persisted into the database until you call
+# session.commit(). If you're not happy about the changes, you can
+# revert all of them back to the last commit by calling
+# session.rollback()
+session = DBSession()
 
-        if not from_ is None:
-            parameters["from"] = from_
+#class to insert contacts in db
+class AddContacts(Person, Message, Base):
+    def __init__(self,name, phone_number):
+        self.name=name.upper()
+        self.phone_number=str(phone_number)
+        #function to perfom the data entry
+    def insertInformation(self):
+        new_person = Person(name=self.name, contacts=self.phone_number)
+        session.add(new_person)
+        session.commit()
+        person = session.query(Person)
+        for instance in person:
+            print(instance.id, instance.name,"|", instance.contacts)
 
-        if enqueue_ > 0:
-            parameters["enqueue"] = enqueue_
+#class to insert contacts in db
+class SendMessage(Person, Message, Base):
+    def __init__(self,messsage_recipient, message):
+        self.messsage_recipient=messsage_recipient
+        self.message=message
+        #function to perfom the data entry
+    def saveMessage(self):
+        new_message = Message(name=self.messsage_recipient, message_body=self.message)
+        session.add(new_message)
+        session.commit()
+        messages = session.query(Message)
+        for instance in messages:
+            print(instance.person_id, ": ", instance.message_body)
 
-        if not keyword_ is None:
-            parameters["keyword"] = keyword_
+class SearchContact(Person,Base):
+    def __init__(self,name):
+        self.name=name
 
-        if not linkId_ is None:
-            parameters["linkId"] = linkId_
-
-        if not retryDurationInHours_ is None:
-            parameters["retryDurationInHours"] = retryDurationInHours_
-
-        response = self.sendRequest(self.SMSURLString, parameters)
-
-        if self.responseCode == self.HTTP_RESPONSE_CREATED:
-            decoded = json.loads(response)
-            return decoded['SMSMessageData']['Recipients']
-        raise AfricasTalkingGatewayException(response)
-
-    def fetchMessages(self, lastReceivedId_=0):
-        url = "%s?username=%s&lastReceivedId=%s" % (
-            self.SMSURLString, self.username, lastReceivedId_)
-
-        response = self.sendRequest(url)
-
-        if self.responseCode == self.HTTP_RESPONSE_OK:
-            decoded = json.loads(response)
-            return decoded['SMSMessageData']['Messages']
-        raise AfricasTalkingGatewayException(response)
-
-    # Subscription methods
-    def createSubscription(self, phoneNumber_, shortCode_, keyword_):
-        if len(phoneNumber_) == 0 or len(shortCode_) == 0 or len(keyword_) == 0:
-            raise AfricasTalkingGatewayException(
-                "Please supply phone number, short code and keyword")
-
-        url = "%s/create" % (self.SubscriptionURLString)
-        parameters = {
-            'username': self.username,
-            'phoneNumber': phoneNumber_,
-            'shortCode': shortCode_,
-            'keyword': keyword_
-        }
-
-        response = self.sendRequest(url, parameters)
-        if self.responseCode == self.HTTP_RESPONSE_CREATED:
-            decoded = json.loads(response)
-            return decoded
-        raise AfricasTalkingGatewayException(response)
-
-    def deleteSubscription(self, phoneNumber_, shortCode_, keyword_):
-        if len(phoneNumber_) == 0 or len(shortCode_) == 0 or len(keyword_) == 0:
-            raise AfricasTalkingGatewayException(
-                "Please supply phone number, short code and keyword")
-
-        url = "%s/delete" % (self.SubscriptionURLString)
-        parameters = {
-            'username': self.username,
-            'phoneNumber': phoneNumber_,
-            'shortCode': shortCode_,
-            'keyword': keyword_
-        }
-        response = self.sendRequest(url, parameters)
-        if self.responseCode == self.HTTP_RESPONSE_CREATED:
-            decoded = json.loads(response)
-            return decoded
-        raise AfricasTalkingGatewayException(response)
-
-    def fetchPremiumSubscriptions(self, shortCode_, keyword_, lastReceivedId_=0):
-        if len(shortCode_) == 0 or len(keyword_) == 0:
-            raise AfricasTalkingGatewayException(
-                "Please supply the short code and keyword")
-
-        url = "%s?username=%s&shortCode=%s&keyword=%s&lastReceivedId=%s" % (self.SubscriptionURLString, self.username, shortCode_, keyword_, lastReceivedId_)
-
-        result = self.sendRequest(url)
-        if self.responseCode == self.HTTP_RESPONSE_OK:
-            decoded = json.loads(result)
-            return decoded['responses']
-        raise AfricasTalkingGatewayException(result)
-
-    # Voice methods
-    def call(self, from_, to_):
-        parameters = {
-            'username': self.username,
-            'from': from_, 'to': to_
-        }
-        url = "%s/call" % (self.VoiceURLString)
-
-        response = self.sendRequest(url, parameters)
-        decoded = json.loads(response)
-        if decoded['Status'] != "Success":
-            raise AfricasTalkingGatewayException(decoded['ErrorMessage'])
-
-    def getNumQueuedCalls(self, phoneNumber_, queueName_=None):
-        parameters = {
-            'username': self.username,
-            'phoneNumbers': phoneNumber_
-        }
-
-        if queueName_ is not None:
-            parameters['queueName'] = queueName_
-
-        url = "%s/queueStatus" % (self.VoiceURLString)
-
-        response = self.sendRequest(url, parameters)
-        decoded = json.loads(response)
-        if decoded['Status'] == "Success":
-            return decoded['NumQueued']
-        raise AfricasTalkingGatewayException(decoded['ErrorMessage'])
-
-    def uploadMediaFile(self, urlString_):
-        parameters = {
-            'username': self.username,
-            'url': urlString_
-        }
-
-        url = "%s/mediaUpload" % (self.VoiceURLString)
-
-        response = self.sendRequest(url, parameters)
-        decoded = json.loads(response)
-        if decoded['Status'] != "Success":
-            raise AfricasTalkingGatewayException(decoded['ErrorMessage'])
-
-    #Airtime method
-    def sendAirtime(self, recipients_):
-        parameters = {
-            'username': self.username,
-            'recipients': json.dumps(recipients_)
-        }
-
-        SendAirtimeUrlString = "%s/send" % (self.AirtimeUrlString)
-
-        response = self.sendRequest(SendAirtimeUrlString, parameters)
-        decoded = json.loads(response)
-        responses = decoded['responses']
-        if self.responseCode == self.HTTP_RESPONSE_CREATED:
-            if len(responses) > 0:
-                return responses
-            raise AfricasTalkingGatewayException(decoded["errorMessage"])
-        raise AfricasTalkingGatewayException(response)
-
-    # Userdata method
-    def getUserData(self):
-        url = "%s?username=%s" % (self.UserDataURLString, self.username)
-        result = self.sendRequest(url)
-        if self.responseCode == self.HTTP_RESPONSE_OK:
-            decoded = json.loads(result)
-            return decoded['UserData']
-        raise AfricasTalkingGatewayException(result)
-
-    # HTTP access method
-    def sendRequest(self, urlString, data_=None):
-        try:
-            if data_ is not None:
-                #data = urllib_urlencode(data_)
-                data = urllib_urlencode(data_).encode("utf-8")
-                request = urllib_request.Request(
-                    urlString, data=data, headers=self.headers)
-            else:
-                request = urllib_request.Request(urlString, headers=self.headers)
-            response = urllib_request.urlopen(request)
-        except Exception as e:
-            raise AfricasTalkingGatewayException(str(e))
+    def search(self):
+        searchResults = session.query(Person).filter(Person.name.ilike("%"+self.name+"%"))
+        total = searchResults.count()
+        if(total>1):
+            askForRequired = input("Which "+self.name+"?")
+            for instance in searchResults:
+                name_list = (instance.name).upper().split()
+                other_names =list(set(name_list)-set([(self.name).upper()]))
+                print(other_names )
+        elif(total==1):
+            for instance in searchResults:
+                print(total, ". ", instance.name)
         else:
-            self.responseCode = response.getcode()
-            response = response.read().decode('utf-8')
-            if self.Debug:
-                print(response)
-            return response
+            print("No records found!")
+
+class ContactsSync(Person, Base):
+    """"  """
+
+def main():
+    pass
+commands_help_values = {"add -n <name> -p <contacts>":"Add <name> and <contacts> to the database",
+                        "help?":"Check commands and their values",
+                        "search <keyword>":"search for a contact and display",
+                        "text <name> -m <message>":"send <message> to <name> in the database",
+                        "sync contacts":"Sync contacts with Firebase",
+                         "exit":"Exit from prgram"}
+if __name__ == '__main__':
+    main()
+    while True:
+        userInput = input("%>") #save user input in string variable
+
+        input_words_list = userInput.replace('"','').split()  #split user input string words into list using spaces
+
+        if ((input_words_list[0] == 'add') and (input_words_list[1] == '-n') and (input_words_list[3] == '-p')):
+            name = input_words_list[2]
+            names_string = name.replace('_',' ')
+            phone_number = input_words_list[4]
+            # Insert a Person in the person table
+            a_contacts = AddContacts(names_string, phone_number)
+            a_contacts.insertInformation()
+            session.commit()
+        elif ((input_words_list[0] == 'search') and (input_words_list[1] != '')):
+            search_keyword = input_words_list[1]
+            searcher = SearchContact(search_keyword)
+            searcher.search()
+
+
+        elif ((input_words_list[0] == 'text') and (input_words_list[2] == '-m') and (input_words_list[3] != '')):
+            name_to_text = input_words_list[1]
+            msg = ""
+            for i in range(3, len(input_words_list)):
+                msg =msg +" " + input_words_list[i]
+                # Insert a Person in the person table
+            #save_message = SendMessage(name, message_to_send)
+            #save_message.saveMessage()
+            searchRslts = session.query(Person).filter(Person.name.ilike(name_to_text))
+            total = searchRslts.count()
+            if total <=0:
+                print("The contact name you entered does not exist, please try another name.")
+            else:
+                for instance in searchRslts:
+                    phone_number = instance.contacts
+                    forward = FowardMessage(phone_number, msg)
+                    forward.getAndSend()
+
+        elif ((input_words_list[0] == 'sync') and (input_words_list[1] == 'contacts')):
+            print("Syncing contacts.....")
+
+
+        elif (input_words_list[0] == 'help?'):
+            for key, value in commands_help_values.items():
+                print("      ", key, "   :   ", value)
+
+        elif (input_words_list[0] == 'exit'):
+            exit()
+
+        else:#if the user enters a wrong command
+            print("You entered a wrong command. Please type 'help?' to see valid commands.")
+
+session.close()
