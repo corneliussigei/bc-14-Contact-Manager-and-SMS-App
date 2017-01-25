@@ -5,7 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from consumeAfTalkingAPI import getMessage
+from consumeAfTalkingAPI import FowardMessage
 
 Base = declarative_base()
 
@@ -91,10 +91,10 @@ class SearchContact(Person,Base):
         searchResults = session.query(Person).filter(Person.name.ilike("%"+self.name+"%"))
         total = searchResults.count()
         if(total>1):
-            searchResults.split()
-            askForRequired = input("Which "+self.name+"?")
+            # searchResults.split()
+            # askForRequired = input("Which "+self.name+"?")
             for instance in searchResults:
-                print(total,". ",instance.name)
+                print(total,". ",instance.name, instance.contacts)
         elif(total==0):
             for instance in searchResults:
                 print(total, ". ", instance.name)
@@ -110,7 +110,8 @@ commands_help_values = {"add -n <name> -p <contacts>":"Add <name> and <contacts>
                         "help?":"Check commands and their values",
                         "search <keyword>":"search for a contact and display",
                         "text <name> -m <message>":"send <message> to <name> in the database",
-                        "sync contacts":"Sync contacts with Firebase"}
+                        "sync contacts":"Sync contacts with Firebase",
+                         "exit":"Exit from prgram"}
 if __name__ == '__main__':
     main()
     while True:
@@ -132,15 +133,22 @@ if __name__ == '__main__':
 
 
         elif ((input_words_list[0] == 'text') and (input_words_list[2] == '-m') and (input_words_list[3] != '')):
-            name = input_words_list[1]
-            msg = []
+            name_to_text = input_words_list[1]
+            msg = ""
             for i in range(3, len(input_words_list)):
-                message = msg.append(input_words_list[i]+" ")
+                msg =msg +" " + input_words_list[i]
                 # Insert a Person in the person table
-            message_to_send = message.strip()
-            save_message = SendMessage(name, message_to_send)
-            save_message.saveMessage()
-            getMessage(name, message_to_send)
+            #save_message = SendMessage(name, message_to_send)
+            #save_message.saveMessage()
+            searchRslts = session.query(Person).filter(Person.name.ilike(name_to_text))
+            total = searchRslts.count()
+            if total <=0:
+                print("The contact name you entered does not exist, please try another name.")
+            else:
+                for instance in searchRslts:
+                    phone_number = instance.contacts
+                    forward = FowardMessage(phone_number, msg)
+                    forward.getAndSend()
 
 
 
@@ -160,10 +168,4 @@ if __name__ == '__main__':
             print("You entered a wrong command. Please type 'help?' to see valid commands.")
 
 session.close()
-# Insert a message in the Message table
-#new_message = Message(message_body='This is a sample message', person=new_person)
-#session.add(new_message)
-#session.commit()
-
-#query
 
