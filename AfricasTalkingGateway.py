@@ -216,19 +216,18 @@ class AfricasTalkingGateway:
     def sendRequest(self, urlString, data_=None):
         try:
             if data_ is not None:
-                data = urllib_urlencode(data_)
+                #data = urllib_urlencode(data_)
+                data = urllib_urlencode(data_).encode("utf-8")
                 request = urllib_request.Request(
-                    urlString, data, headers=self.headers)
+                    urlString, data=data, headers=self.headers)
             else:
                 request = urllib_request.Request(urlString, headers=self.headers)
-
             response = urllib_request.urlopen(request)
         except Exception as e:
-			print (e)
-            # raise AfricasTalkingGatewayException(str(e))
+            raise AfricasTalkingGatewayException(str(e))
         else:
-			self.responseCode = response.getcode()
-			response = response.read().decode('utf-8')
-			if self.Debug:
-				print (response)
-			return response
+            self.responseCode = response.getcode()
+            response = response.read().decode('utf-8')
+            if self.Debug:
+                print(response)
+            return response
