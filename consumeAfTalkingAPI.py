@@ -1,29 +1,34 @@
 import os
 import sys
-from africastalking.AfricasTalkingGateway import (AfricasTalkingGateway, AfricasTalkingGatewayException)
+from AfricasTalkingGateway import AfricasTalkingGateway, AfricasTalkingGatewayException
 
-# Specify your login credentials
-username = "corneliussigei"
-apikey = "94de736e83189cc456d7c59273d702212f6209044bc9e2909ef9c1ceaed405bb"
+class FowardMessage(object):
+    def __init__(self,phone_number, message):
+        self.phone_number = phone_number
+        self.message = message
+    def getAndSend(self):
+        # Specify your login credentials
+        username = "corneliussigei"
+        apikey = "47e9812f75116188f36aa74037b99ff5f1b22e699712146f90b65b6564178648"
 
-# Please ensure you include the country code (+254 for Kenya in this case)
-to      = "+254719221624"
+        # Please ensure you include the country code (+254 for Kenya in this case)
+        to = self.phone_number
+        message =self.message
 
-message = "My message"
+        # Create a new instance of our awesome gateway class
+        gateway = AfricasTalkingGateway(username, apikey)
 
-# Create a new instance of our awesome gateway class
-gateway = AfricasTalkingGateway(username, apikey)
+        try:
+            # Thats it, hit send and we'll take care of the rest.
 
-try:
-    # Thats it, hit send and we'll take care of the rest.
+            results = gateway.sendMessage(to, message)
 
-    results = gateway.sendMessage(to, message)
-
-    for recipient in results:
-        # status is either "Success" or "error message"
-        print('number=%s;status=%s;messageId=%s;cost=%s' %(recipient['number'],
-                                                        recipient['status'],
-                                                        recipient['messageId'],
-                                                        recipient['cost']))
-except AfricasTalkingGatewayException:
-    print('Encountered an error while sending: %s' % str(AfricasTalkingGatewayException))
+            for recipient in results:
+                # status is either "Success" or "error message"
+                print('    You message is: %s ' % message)
+                print('    You successfully sent the message to: %s'%recipient['number'])
+                print('    Status: %s' % recipient['status'])
+                print('    Your message ID is: %s' % recipient['messageId'])
+                print('    You were charged %s for sending the message.' % recipient['cost'])
+        except AfricasTalkingGatewayException as e:
+            print('Encountered an error while sending: %s' % str(e))
