@@ -58,7 +58,7 @@ session = DBSession()
 #class to insert contacts in db
 class AddContacts(Person, Message, Base):
     def __init__(self,name, phone_number):
-        self.name=name
+        self.name=name.upper()
         self.phone_number=str(phone_number)
         #function to perfom the data entry
     def insertInformation(self):
@@ -91,11 +91,26 @@ class SearchContact(Person,Base):
         searchResults = session.query(Person).filter(Person.name.ilike("%"+self.name+"%"))
         total = searchResults.count()
         if(total>1):
-            # searchResults.split()
-            # askForRequired = input("Which "+self.name+"?")
+            print("Which "+self.name+"?")
+            counter = 0
+            matching = []
             for instance in searchResults:
-                print(total,". ",instance.name, instance.contacts)
-        elif(total==0):
+                counter+=1
+                matching.append("Name: "+instance.name+"  Contacts: "+ instance.contacts)
+                name_list = (instance.name).upper().split()
+                other_names =list(set(name_list)-set([(self.name).upper()]))
+                print("         ["+str(counter)+"]",other_names )
+            userChoice = input()
+            try:
+                choice = int(userChoice) - 1
+                if (choice not in range(1, counter)):
+                    print("The number you entered is out of range")
+                else:
+                    print(matching[choice])
+            except ValueError:
+                print("You entered an invalid choice")
+
+        elif(total==1):
             for instance in searchResults:
                 print(total, ". ", instance.name)
         else:
@@ -121,9 +136,10 @@ if __name__ == '__main__':
 
         if ((input_words_list[0] == 'add') and (input_words_list[1] == '-n') and (input_words_list[3] == '-p')):
             name = input_words_list[2]
+            names_string = name.replace('_',' ')
             phone_number = input_words_list[4]
             # Insert a Person in the person table
-            a_contacts = AddContacts(name, phone_number)
+            a_contacts = AddContacts(names_string, phone_number)
             a_contacts.insertInformation()
             session.commit()
         elif ((input_words_list[0] == 'search') and (input_words_list[1] != '')):
@@ -150,8 +166,6 @@ if __name__ == '__main__':
                     forward = FowardMessage(phone_number, msg)
                     forward.getAndSend()
 
-
-
         elif ((input_words_list[0] == 'sync') and (input_words_list[1] == 'contacts')):
             print("Syncing contacts.....")
 
@@ -163,8 +177,8 @@ if __name__ == '__main__':
         elif (input_words_list[0] == 'exit'):
             exit()
 
-
         else:#if the user enters a wrong command
             print("You entered a wrong command. Please type 'help?' to see valid commands.")
 
 session.close()
+
