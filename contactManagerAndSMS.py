@@ -1,59 +1,5 @@
-import os
-import sys
-from sqlalchemy import Column, ForeignKey, Integer, String, TIMESTAMP, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from CManager_SMS_Model import Person, Message, Base, session
 from consumeAfTalkingAPI import FowardMessage
-
-Base = declarative_base()
-
-class Person(Base):
-    __tablename__ = 'personTable'
-    # Here we define columns for the table person
-    # Notice that each column is also a normal Python instance attribute.
-    id = Column(Integer, primary_key=True)
-    contacts = Column(String(100), nullable=False)
-    name = Column(String(250), nullable=False)
-
-
-class Message(Base):
-    __tablename__ = 'messageTable'
-    # Here we define columns for the message table.
-    # Notice that each column is also a normal Python instance attribute.
-    id = Column(Integer, primary_key=True)
-    message_body = Column(String(1000))
-    time_stamp = Column(TIMESTAMP,nullable=True)
-    person_id = Column(Integer, ForeignKey('personTable.id'))
-    person = relationship(Person)
-
-
-# Create an engine that stores data in the local directory's
-# appDatabase.db file.
-engine = create_engine('sqlite:///appDatabase.db')
-
-# Create all tables in the engine. This is equivalent to "Create Table"
-# statements in raw SQL.
-Base.metadata.create_all(engine)
-
-#inserting data
-
-
-engine = create_engine('sqlite:///appDatabase.db')
-# Bind the engine to the metadata of the Base class so that the
-# declaratives can be accessed through a DBSession instance
-Base.metadata.bind = engine
-
-DBSession = sessionmaker(bind=engine)
-# A DBSession() instance establishes all conversations with the database
-# and represents a "staging zone" for all the objects loaded into the
-# database session object. Any change made against the objects in the
-# session won't be persisted into the database until you call
-# session.commit(). If you're not happy about the changes, you can
-# revert all of them back to the last commit by calling
-# session.rollback()
-session = DBSession()
 
 #class to insert contacts in db
 class AddContacts(Person, Message, Base):
@@ -86,7 +32,6 @@ class SendMessage(Person, Message, Base):
 class SearchContact(Person,Base):
     def __init__(self,name):
         self.name=name
-
     def search(self):
         searchResults = session.query(Person).filter(Person.name.ilike("%"+self.name+"%"))
         total = searchResults.count()
@@ -117,16 +62,17 @@ class SearchContact(Person,Base):
             print("No records found!")
 
 class ContactsSync(Person, Base):
-    """"  """
+    """" To sync contacts """
 
 def main():
     pass
-commands_help_values = {"add -n <name> -p <contacts>":"Add <name> and <contacts> to the database",
+commands_help_values = {"add -n <1stname_2ndname> -p <contacts>":"Add <name> and <contacts> to the database",
                         "help?":"Check commands and their values",
                         "search <keyword>":"search for a contact and display",
                         "text <name> -m <message>":"send <message> to <name> in the database",
                         "sync contacts":"Sync contacts with Firebase",
-                         "exit":"Exit from prgram"}
+                        "exit":"Exit from prgram"
+                        }
 if __name__ == '__main__':
     main()
     while True:
@@ -134,51 +80,63 @@ if __name__ == '__main__':
 
         input_words_list = userInput.replace('"','').split()  #split user input string words into list using spaces
 
-        if ((input_words_list[0] == 'add') and (input_words_list[1] == '-n') and (input_words_list[3] == '-p')):
-            name = input_words_list[2]
-            names_string = name.replace('_',' ')
-            phone_number = input_words_list[4]
-            # Insert a Person in the person table
-            a_contacts = AddContacts(names_string, phone_number)
-            a_contacts.insertInformation()
-            session.commit()
-        elif ((input_words_list[0] == 'search') and (input_words_list[1] != '')):
-            search_keyword = input_words_list[1]
-            searcher = SearchContact(search_keyword)
-            searcher.search()
+        try:
+            if ((input_words_list[0] == 'add') and (input_words_list[1] == '-n') and (input_words_list[3] == '-p')):
+                try:
+                    name = input_words_list[2]
+                    names_string = name.replace('_',' ')
+                    phone_number = input_words_list[4]
+                    # Insert a Person in the person table
+                    searchRslts = session.query(Person).filter(Person.name==names_string.upper())
+                    total = searchRslts.count()
+                    if total<1:
+                        a_contacts = AddContacts(names_string, phone_number)
+                        a_contacts.insertInformation()
+                    else:
+                        print("That name already exists in the database. Please use another name.")
+                    session.commit()
+                except IndexError:
+                    print("You did not enter a phone number. Check your command and try again")
+            elif ((input_words_list[0] == 'search') and (input_words_list[1] != '')):
+                try:
+                    search_keyword = input_words_list[1]
+                    searcher = SearchContact(search_keyword)
+                    searcher.search()
+                except IndexError:
+                    print("You did not enter a search key word. Check your command and try again")
+
+            elif ((input_words_list[0] == 'text') and (input_words_list[2] == '-m') and (input_words_list[3] != '')):
+                name_to_text = input_words_list[1]
+                msg = ""
+                for i in range(3, len(input_words_list)):
+                    msg =msg +" " + input_words_list[i]
+                    # Insert a Person in the person table
+                #save_message = SendMessage(name, message_to_send)
+                #save_message.saveMessage()
+                searchRslts = session.query(Person).filter(Person.name.ilike(name_to_text))
+                total = searchRslts.count()
+                if total <=0:
+                    print("The contact name you entered does not exist, please try another name.")
+                else:
+                    for instance in searchRslts:
+                        phone_number = instance.contacts
+                        forward = FowardMessage(phone_number, msg)
+                        forward.getAndSend()
+
+            elif ((input_words_list[0] == 'sync') and (input_words_list[1] == 'contacts')):
+                print("Syncing contacts.....")
 
 
-        elif ((input_words_list[0] == 'text') and (input_words_list[2] == '-m') and (input_words_list[3] != '')):
-            name_to_text = input_words_list[1]
-            msg = ""
-            for i in range(3, len(input_words_list)):
-                msg =msg +" " + input_words_list[i]
-                # Insert a Person in the person table
-            #save_message = SendMessage(name, message_to_send)
-            #save_message.saveMessage()
-            searchRslts = session.query(Person).filter(Person.name.ilike(name_to_text))
-            total = searchRslts.count()
-            if total <=0:
-                print("The contact name you entered does not exist, please try another name.")
-            else:
-                for instance in searchRslts:
-                    phone_number = instance.contacts
-                    forward = FowardMessage(phone_number, msg)
-                    forward.getAndSend()
+            elif (input_words_list[0] == 'help?'):
+                for key, value in commands_help_values.items():
+                    print("      ", key, "   :   ", value)
 
-        elif ((input_words_list[0] == 'sync') and (input_words_list[1] == 'contacts')):
-            print("Syncing contacts.....")
+            elif (input_words_list[0] == 'exit'):
+                exit()
 
-
-        elif (input_words_list[0] == 'help?'):
-            for key, value in commands_help_values.items():
-                print("      ", key, "   :   ", value)
-
-        elif (input_words_list[0] == 'exit'):
-            exit()
-
-        else:#if the user enters a wrong command
-            print("You entered a wrong command. Please type 'help?' to see valid commands.")
+            else:#if the user enters a wrong command
+                print("You entered a wrong command. Please type 'help?' to see valid commands.")
+        except IndexError:
+            print("Please enter a full command. Type help? to check valid commands.")
 
 session.close()
-
