@@ -4,16 +4,16 @@ This is an Andela bootcamp week 2 project. The app is a console Python applicati
 ##Feature Summary
 ###Add contacts using commands.
 To add contacts in the database, run the contactManagerAndSMS.py file and type the command:
-######add -n <1stname_2ndname> -p <contacts>
+######add -n 1stname_2ndname -p contacts
 If the command is properly entered, the the program saves the name in a database table and displays the saved contact, otherwise it displays and appropriate error message.
 ###Send messages using commands.
 To send a message, run the contactManagerAndSMS.py file and type the command:
-######text <name> -m <message>
+######text name -m message
 The program sends the message and returns a success message, otherwise it rturns an appropriate error message.
 
 ###Search.
 To search for a contact run the contactManagerAndSMS.py file and type the command:
-######search <keyword>
+######search keyword
 The program returns a list of all matching records. If the records are more than 1, it asks the user which contact to view. If the record is 1, it
  displays the name and contacts, otherwise it informs the user that no record was found
 ###View all contacts
