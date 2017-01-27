@@ -14,15 +14,14 @@ class AddContacts(Person, Message, Base):
         session.add(new_person)
         session.commit()
         person = session.query(Person)
-        for instance in person:
-            print(instance.id, instance.name,"|", instance.contacts)
+        table = [[self.name, self.phone_number]]
+
+        print(tabulate(table, headers = ["Name", "Contact"],tablefmt="grid"))
 
 #class to display all contacts
 class ViewContacts(Person,Base):
     def display(self):
         searchResults = session.query(Person).all()
-        table = []
-        counter = 0
         headers = ["Contact ID", "Contact Name", "Phone Number"]
         table = [[instance.id, instance.name, instance.contacts] for instance in searchResults]
         print(tabulate(table, headers, tablefmt="grid"))
@@ -70,10 +69,16 @@ commands_help_values = {"add -n <1stname_2ndname> -p <contacts>":"Add <name> and
                         "search <keyword>":"search for a contact and display",
                         "text <name> -m <message>":"send <message> to <name> in the database",
                         "sync contacts":"Sync contacts with Firebase",
-                        "exit":"Exit from prgram"
+                        "exit":"Exit from prgram",
+                        "view all":"Display all contacts that have been added."
                         }
 if __name__ == '__main__':
     main()
+    table = [[k,v] for k,v in commands_help_values.items()]
+    headers = ["Command", "Command Meaning"]
+    print("          COMMANDS")
+    print(tabulate(table, headers))
+
     while True:
         userInput = input("%>") #save user input in string variable
 
