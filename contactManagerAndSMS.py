@@ -1,5 +1,7 @@
+
 from CManager_SMS_Model import Person, Message, Base, session
 from consumeAfTalkingAPI import FowardMessage
+from tabulate import tabulate, tabulate_formats,_table_formats
 
 #class to insert contacts in db
 class AddContacts(Person, Message, Base):
@@ -12,22 +14,18 @@ class AddContacts(Person, Message, Base):
         session.add(new_person)
         session.commit()
         person = session.query(Person)
-        for instance in person:
-            print(instance.id, instance.name,"|", instance.contacts)
+        table = [[self.name, self.phone_number]]
 
-#class to insert contacts in db
-class SendMessage(Person, Message, Base):
-    def __init__(self,messsage_recipient, message):
-        self.messsage_recipient=messsage_recipient
-        self.message=message
-        #function to perfom the data entry
-    def saveMessage(self):
-        new_message = Message(name=self.messsage_recipient, message_body=self.message)
-        session.add(new_message)
-        session.commit()
-        messages = session.query(Message)
-        for instance in messages:
-            print(instance.person_id, ": ", instance.message_body)
+        print(tabulate(table, headers = ["Name", "Contact"],tablefmt="grid"))
+
+#class to display all contacts
+class ViewContacts(Person,Base):
+    def display(self):
+        searchResults = session.query(Person).all()
+        headers = ["Contact ID", "Contact Name", "Phone Number"]
+        table = [[instance.id, instance.name, instance.contacts] for instance in searchResults]
+        print(tabulate(table, headers, tablefmt="grid"))
+
 
 class SearchContact(Person,Base):
     def __init__(self,name):
@@ -57,7 +55,7 @@ class SearchContact(Person,Base):
 
         elif(total==1):
             for instance in searchResults:
-                print(total, ". ", instance.name)
+                print("Name: " + instance.name + "  Contacts: " + instance.contacts)
         else:
             print("No records found!")
 
@@ -70,11 +68,17 @@ commands_help_values = {"add -n <1stname_2ndname> -p <contacts>":"Add <name> and
                         "help?":"Check commands and their values",
                         "search <keyword>":"search for a contact and display",
                         "text <name> -m <message>":"send <message> to <name> in the database",
-                        "sync contacts":"Sync contacts with Firebase",
-                        "exit":"Exit from prgram"
+                        "exit":"Exit from prgram",
+                        "view all":"Display all contacts that have been added."
                         }
 if __name__ == '__main__':
     main()
+    table = [[k,v] for k,v in commands_help_values.items()]
+    headers = ["Command", "Command Meaning"]
+    print("          HELLO, WELCOME TO S&M")
+    print("       A CONTACT MANAGER AND SMS APP")
+    print(tabulate(table, headers))
+
     while True:
         userInput = input("%>") #save user input in string variable
 
@@ -104,6 +108,12 @@ if __name__ == '__main__':
                     searcher.search()
                 except IndexError:
                     print("You did not enter a search key word. Check your command and try again")
+            elif ((input_words_list[0] == 'view') and (input_words_list[1] == 'all')):
+                try:
+                    view_obj = ViewContacts()
+                    view_obj.display()
+                except IndexError:
+                    print("Please enter the correct view command.")
 
             elif ((input_words_list[0] == 'text') and (input_words_list[2] == '-m') and (input_words_list[3] != '')):
                 name_to_text = input_words_list[1]
