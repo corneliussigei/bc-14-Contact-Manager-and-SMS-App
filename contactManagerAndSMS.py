@@ -68,7 +68,6 @@ commands_help_values = {"add -n <1stname_2ndname> -p <contacts>":"Add <name> and
                         "help?":"Check commands and their values",
                         "search <keyword>":"search for a contact and display",
                         "text <name> -m <message>":"send <message> to <name> in the database",
-                        "sync contacts":"Sync contacts with Firebase",
                         "exit":"Exit from prgram",
                         "view all":"Display all contacts that have been added."
                         }
@@ -76,7 +75,8 @@ if __name__ == '__main__':
     main()
     table = [[k,v] for k,v in commands_help_values.items()]
     headers = ["Command", "Command Meaning"]
-    print("          COMMANDS")
+    print("          HELLO, WELCOME TO S&M")
+    print("       A CONTACT MANAGER AND SMS APP")
     print(tabulate(table, headers))
 
     while True:
