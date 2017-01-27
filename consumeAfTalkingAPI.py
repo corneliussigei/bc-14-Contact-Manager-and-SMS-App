@@ -28,7 +28,5 @@ class FowardMessage(object):
                 print('    You message is: %s ' % message)
                 print('    You successfully sent the message to: %s'%recipient['number'])
                 print('    Status: %s' % recipient['status'])
-                print('    Your message ID is: %s' % recipient['messageId'])
-                print('    You were charged %s for sending the message.' % recipient['cost'])
         except AfricasTalkingGatewayException as e:
             print('Encountered an error while sending: %s' % str(e))
