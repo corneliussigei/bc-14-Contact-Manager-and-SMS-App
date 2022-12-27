@@ -12,7 +12,7 @@ pip==9.0.1
 pyfiglet==0.7.5
 python-firebase==1.2
 requests==2.13.0
-setuptools==34.0.2
+setuptools==65.5.1
 tabulate==0.7.7
 urllib2-file==0.2.1	
 urllib3==1.20
